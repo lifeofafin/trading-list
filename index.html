@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Collection</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#ffffff; --soft:#eef1f6; --border:#e3e6ee;
+  --text:#2f3440; --muted:#6b7280; --accent:#4a6cf7; --accent-soft:#e7ecff;
+  --good:#1f9d63; --good-soft:#e2f5ec;
+  --warn:#b4541a; --warn-soft:#fdece1;
+  --gift:#7a44c2; --gift-soft:#f0e8fb;
+}
+*{box-sizing:border-box}
+body{
+  font-family:Inter,sans-serif; background:var(--bg); color:var(--text);
+  max-width:980px; margin:0 auto; padding:32px 20px 140px; line-height:1.5;
+}
+a{color:var(--accent)}
+h1{font-size:2.3rem; margin:0 0 6px; letter-spacing:-.01em}
+.subtitle{color:var(--muted); margin:0 0 18px}
+
+/* status + rules */
+.statusline{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px}
+.pill{display:inline-flex; align-items:center; gap:7px; background:var(--good-soft); color:var(--good);
+  font-weight:600; font-size:.85rem; padding:6px 12px; border-radius:999px}
+.pill .dot{width:8px; height:8px; border-radius:50%; background:var(--good)}
+.linkbtn{background:none; border:none; color:var(--accent); font:inherit; font-weight:500;
+  cursor:pointer; padding:6px 0}
+.guidelines{background:var(--card); border:1px solid var(--border); border-radius:18px;
+  padding:18px 26px 22px; margin:0 0 28px; display:none}
+.guidelines.open{display:block}
+.guidelines ul{margin:0 0 4px; padding-left:1.2em}
+.guidelines li{margin:10px 0; line-height:1.55}
+.guidelines h3{font-size:.82rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--accent); margin:20px 0 6px}
+.guidelines h3:first-child{margin-top:0}
+
+/* toolbar */
+.toolbar{position:sticky; top:0; z-index:20; background:var(--bg); padding:12px 0 10px; margin-bottom:6px}
+.toolbar-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+input[type="search"]{flex:1; min-width:220px; padding:13px 14px; border-radius:14px;
+  border:1px solid var(--border); background:var(--card); font:inherit}
+.tbtn{display:inline-flex; align-items:center; gap:8px; padding:13px 16px; border-radius:14px;
+  border:1px solid var(--border); background:var(--card); font:inherit; font-weight:500; cursor:pointer; white-space:nowrap}
+.tbtn .count{background:var(--accent); color:#fff; border-radius:999px; font-size:.72rem;
+  min-width:20px; height:20px; padding:0 6px; display:inline-flex; align-items:center; justify-content:center}
+.resultcount{color:var(--muted); font-size:.85rem; margin:8px 2px 0}
+
+/* filter panel */
+.filters{display:none; gap:14px; flex-wrap:wrap; background:var(--card); border:1px solid var(--border);
+  border-radius:16px; padding:16px; margin-top:10px}
+.filters.open{display:flex}
+.field{display:flex; flex-direction:column; gap:6px; font-size:.8rem; color:var(--muted)}
+.field select{padding:9px 11px; border-radius:11px; border:1px solid var(--border); background:var(--card);
+  font:inherit; color:var(--text); min-width:150px}
+.field.check{flex-direction:row; align-items:center; gap:8px; color:var(--text); font-size:.92rem; align-self:flex-end; padding-bottom:7px}
+.filters .clear{align-self:flex-end; margin-left:auto; background:none; border:none; color:var(--accent);
+  font:inherit; font-weight:500; cursor:pointer; padding:7px 0}
+
+/* alphabet */
+.alpha{display:flex; flex-wrap:wrap; gap:5px; margin:18px 0 8px}
+.alpha button{min-width:30px; height:30px; padding:0 7px; border-radius:9px; border:1px solid var(--border);
+  background:var(--card); font:inherit; font-size:.82rem; font-weight:500; cursor:pointer; color:var(--text)}
+.alpha button.active{background:var(--accent); border-color:var(--accent); color:#fff}
+.alpha button:disabled{opacity:.32; cursor:default}
+
+/* groups + titles */
+.letter-head{font-size:1.05rem; font-weight:700; color:var(--muted); letter-spacing:.04em;
+  margin:26px 4px 10px; text-transform:uppercase}
+.title-btn{display:flex; align-items:center; gap:10px; width:100%; background:var(--card);
+  border:1px solid var(--border); border-radius:16px; padding:15px 18px; font:inherit; font-size:1.05rem;
+  font-weight:600; text-align:left; margin-bottom:10px; cursor:pointer; color:var(--text)}
+.title-btn .chev{margin-left:auto; color:var(--muted); transition:transform .15s}
+.title-btn[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.title-btn .vcount{font-size:.78rem; font-weight:500; color:var(--muted); background:var(--soft);
+  border-radius:999px; padding:2px 9px}
+.title-box{display:none; border:1px solid var(--border); border-radius:16px; padding:6px 18px;
+  margin:-4px 0 12px; background:var(--card)}
+.title-box.open{display:block}
+
+.item{padding:15px 0; border-bottom:1px solid var(--border)}
+.item:last-child{border-bottom:none}
+.item-top{display:flex; gap:11px; align-items:flex-start}
+.item-top input[type="checkbox"]{width:18px; height:18px; margin-top:2px; flex:none; accent-color:var(--accent)}
+.item-main{flex:1; min-width:0}
+.item-line{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.item-loc{font-weight:600}
+.item-sub{color:var(--muted); font-size:.86rem; margin-top:3px}
+.badges{display:inline-flex; gap:6px; flex-wrap:wrap}
+.badge{font-size:.7rem; font-weight:600; padding:3px 9px; border-radius:999px; letter-spacing:.02em}
+.b-proshot{background:var(--accent-soft); color:var(--accent)}
+.b-bootleg{background:var(--soft); color:var(--muted)}
+.b-gift{background:var(--gift-soft); color:var(--gift)}
+.b-nft{background:var(--warn-soft); color:var(--warn)}
+.item-detail{display:none; margin-top:10px}
+.item-detail.open{display:block}
+.detail-block{background:#f9fafc; border:1px solid var(--border); border-radius:11px; padding:11px 13px;
+  margin-top:9px; font-size:.88rem}
+.detail-block strong{display:block; margin-bottom:3px; color:var(--muted); font-size:.74rem;
+  text-transform:uppercase; letter-spacing:.04em}
+.item-actions{display:flex; gap:14px; margin-top:8px; font-size:.85rem}
+.item-actions button, .item-actions a{background:none; border:none; padding:0; font:inherit; color:var(--accent); cursor:pointer; text-decoration:none}
+
+.empty{text-align:center; color:var(--muted); padding:60px 20px}
+
+/* images */
+.title-thumb{width:40px; height:56px; flex:none; object-fit:contain; border-radius:8px;
+  border:1px solid var(--border); background:var(--soft)}
+.title-name{flex:1; min-width:0}
+.item-top{position:relative}
+.thumb-wrap{position:relative; flex:none; line-height:0}
+.item-thumb{width:88px; height:124px; flex:none; object-fit:contain; border-radius:10px;
+  border:1px solid var(--border); background:var(--soft); cursor:zoom-in; transition:opacity .15s}
+.item-thumb:hover{opacity:.85}
+.thumb-count{position:absolute; bottom:5px; right:5px; background:rgba(20,24,40,.78); color:#fff;
+  font-size:.66rem; font-weight:600; padding:1px 6px; border-radius:999px; pointer-events:none}
+
+/* lightbox */
+.lightbox{position:fixed; inset:0; z-index:60; display:none; background:rgba(12,15,28,.86);
+  align-items:center; justify-content:center; padding:24px}
+.lightbox.show{display:flex}
+.lb-fig{margin:0; max-width:92vw; max-height:88vh; display:flex; flex-direction:column; align-items:center; gap:12px}
+.lb-fig img{max-width:92vw; max-height:80vh; border-radius:12px; box-shadow:0 12px 50px rgba(0,0,0,.5)}
+.lb-fig figcaption{color:#e8eaf2; font-size:.9rem; text-align:center}
+.lb-close{position:absolute; top:16px; right:20px; background:none; border:none; color:#fff;
+  font-size:2.2rem; line-height:1; cursor:pointer; opacity:.85}
+.lb-nav{position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.12);
+  border:none; color:#fff; font-size:2rem; width:46px; height:46px; border-radius:50%; cursor:pointer}
+.lb-prev{left:16px} .lb-next{right:16px}
+@media (max-width:560px){ .item-thumb{width:72px; height:102px} }
+
+/* request tray */
+.tray{position:fixed; left:0; right:0; bottom:0; z-index:40; display:none; justify-content:center; padding:14px 20px;
+  background:linear-gradient(to top, var(--bg) 70%, transparent)}
+.tray.show{display:flex}
+.tray button{display:flex; align-items:center; gap:10px; padding:15px 26px; border-radius:16px; border:none;
+  background:var(--accent); color:#fff; font:inherit; font-weight:600; font-size:1rem; cursor:pointer;
+  box-shadow:0 8px 26px rgba(74,108,247,.32)}
+.tray .count{background:rgba(255,255,255,.25); border-radius:999px; padding:2px 10px; font-size:.85rem}
+
+/* request modal */
+.overlay{position:fixed; inset:0; z-index:50; display:none; background:rgba(20,24,40,.45);
+  align-items:flex-end; justify-content:center; padding:0}
+.overlay.show{display:flex}
+.sheet{background:var(--card); width:100%; max-width:560px; max-height:92vh; overflow-y:auto;
+  border-radius:22px 22px 0 0; padding:24px 24px 30px}
+.sheet-head{display:flex; align-items:center; margin-bottom:6px}
+.sheet-head h2{font-size:1.3rem; margin:0}
+.sheet-head .x{margin-left:auto; background:none; border:none; font-size:1.6rem; line-height:1;
+  color:var(--muted); cursor:pointer}
+.sheet .hint{color:var(--muted); font-size:.88rem; margin:0 0 16px}
+.sel-list{list-style:none; padding:0; margin:0 0 18px; max-height:200px; overflow-y:auto}
+.sel-list li{display:flex; gap:8px; align-items:center; background:var(--soft); border-radius:11px;
+  padding:9px 12px; margin-bottom:7px; font-size:.88rem}
+.sel-list .rm{margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1}
+.sheet label{display:block; font-size:.82rem; color:var(--muted); margin:14px 0 6px}
+.sheet label.gift-check{display:flex; align-items:center; gap:9px; color:var(--text); font-size:.95rem; cursor:pointer}
+.sheet label.gift-check input{width:auto; accent-color:var(--accent)}
+.sheet input, .sheet textarea{width:100%; padding:12px 13px; border-radius:12px; border:1px solid var(--border);
+  background:var(--card); font:inherit}
+.sheet .send{width:100%; margin-top:22px; padding:15px; border-radius:14px; border:none;
+  background:var(--accent); color:#fff; font:inherit; font-weight:600; font-size:1rem; cursor:pointer}
+.sheet .send:disabled{opacity:.5; cursor:default}
+.form-error{margin-top:18px; background:var(--warn-soft); color:var(--warn); border:1px solid #f3cbb3;
+  border-radius:12px; padding:12px 14px; font-size:.9rem; line-height:1.45}
+
+@media (min-width:560px){ .overlay{align-items:center} .sheet{border-radius:22px} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+
+<h1>My Collection</h1>
+<p class="subtitle">Browse or search the catalogue, pick anything you're after, and send a trade request.</p>
+
+<div class="statusline">
+  <span class="pill"><span class="dot"></span>Open for trades</span>
+  <button class="linkbtn" id="rulesToggle">Trading rules ▾</button>
+</div>
+
+<div class="guidelines" id="rules">
+  <h3>General</h3>
+  <ul>
+    <li>I aim to respond within 2–3 days; if you don't hear back it's likely I've missed the message so please email me directly at <a href="mailto:lifeofafin@gmail.com">lifeofafin@gmail.com</a>.</li>
+    <li>If you notice errors, please let me know so I can fix them.</li>
+    <li>Please don't be offended if I point out rips in your collection. It's completely up to you what you wish to collect, and I don't do it to criticise — it can be hard to tell if a file is original when it's being circulated widely, especially when starting out. I let you know so you can make decisions about what to do with them.</li>
+    <li>Please include both file type and file size with your list so I can check the details. If they're not listed, I'll probably reach out to ask before trading.</li>
+    <li> I'm always happy to help new traders - if you have questions about trading or file details please feel free to email me and I'll help if I can. </li>
+  </ul>
+
+  <h3>Trades</h3>
+  <ul>
+    <li>I trade 1:1 for videos and respect all NFT dates.</li>
+    <li>I am open to trading up to 10 videos at a time.</li>
+    <li>If you initiate the trade, I will ask you to send your links first.</li>
+    <li>I aim to trade original files only. If I'm aware there are non-original versions in my collection, I'll indicate that in the notes. If you have originals of any of these videos, please reach out — I'd love to trade for them.</li>
+  </ul>
+
+  <h3>Gifting</h3>
+  <ul>
+    <li>I will gift up to 2 videos at a time. Please ensure the video is giftable and note this in your request.</li>
+    <li>Please don't send another gift request as soon as I've sent you the videos you asked for, or use multiple email addresses to get around this — it's usually quite easy to tell. I genuinely enjoy helping new members of the community, but gifting takes time and effort, so I'd really appreciate everyone respecting the limit so I have the capacity to support as many people as possible who are starting out.</li>
+  </ul>
+</div>
+
+<div class="toolbar">
+  <div class="toolbar-row">
+    <input type="search" id="search" placeholder="Search title, cast, location or master">
+    <button class="tbtn" id="filterToggle">Filters <span class="count" id="filterCount" hidden>0</span></button>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div class="resultcount" id="resultCount"></div>
+</div>
+
+<div class="alpha" id="alpha"></div>
+
+<div id="list"></div>
+
+<!-- floating request button -->
+<div class="tray" id="tray">
+  <button id="openRequest">Request trade <span class="count" id="trayCount">0</span></button>
+</div>
+
+<!-- request modal -->
+<div class="overlay" id="overlay">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">Request a trade</h2>
+      <button class="x" id="closeRequest" aria-label="Close">×</button>
+    </div>
+    <p class="hint">These are the recordings you've selected. Remove any you didn't mean to include, then send.</p>
+    <form action="https://api.web3forms.com/submit" method="POST" id="tradeForm">
+      <input type="hidden" name="access_key" value="11030ad9-2cd0-4d61-871b-aa5a5385e7f8">
+      <input type="hidden" name="from_name" id="formFromName" value="Trade request">
+      <ul class="sel-list" id="selList"></ul>
+      <label>Your email</label>
+      <input type="email" name="email" required placeholder="you@example.com">
+      <label>Link to your collection / list (optional)</label>
+      <input type="text" name="collection" placeholder="Encora, Google Sheet, etc.">
+      <label class="gift-check"><input type="checkbox" name="gift" id="giftCheck" value="Yes"> Tick this box if you're asking for a gift</label>
+      <label>Comments / questions (optional)</label>
+      <textarea name="comments" rows="4" placeholder="Anything you want me to know"></textarea>
+      <input type="hidden" name="Recordings requested" id="formTitles">
+      <input type="hidden" name="subject" id="formSubject">
+      <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none" aria-hidden="true">
+      <div class="form-error" id="formError" hidden></div>
+      <button type="submit" class="send" id="sendBtn">Send request</button>
+    </form>
+  </div>
+</div>
+
+<!-- image lightbox -->
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <button class="lb-close" id="lbClose" aria-label="Close image">×</button>
+  <button class="lb-nav lb-prev" id="lbPrev" aria-label="Previous">‹</button>
+  <figure class="lb-fig">
+    <img id="lbImg" alt="">
+    <figcaption id="lbCap"></figcaption>
+  </figure>
+  <button class="lb-nav lb-next" id="lbNext" aria-label="Next">›</button>
+</div>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4veIRxEex0V5YFAbHhp8GVXvm_IW27whICoEz9-5dPpGNH0ONzluEHEEu-4Z5nKRiht46ntOjNZ-p/pub?gid=497089975&single=true&output=csv";
+
+let rows = [];
+const selected = new Map(); // id -> {title, location, date, master, link}
+const openTitles = new Set();
+const openItems = new Set();
+const state = { search:"", letter:"ALL", type:"", format:"", location:"", master:"", giftable:false, nft:"" };
+
+/* read a cell by any of several possible header names, case-insensitively */
+function field(row, names){
+  for (const n of names){
+    for (const k in row){
+      if (k && k.trim().toLowerCase() === n.toLowerCase()){
+        const v = (row[k] || "").trim();
+        if (v) return v;
+      }
+    }
+  }
+  return "";
+}
+const get = {
+  title:r=>field(r,["Title"]),
+  cast:r=>field(r,["Cast"]),
+  date:r=>field(r,["Date"]),
+  master:r=>field(r,["Master","Source"]),
+  link:r=>field(r,["Link","URL"]),
+  location:r=>field(r,["Location","Venue","Production"]),
+  format:r=>field(r,["Format","File Type","Filetype"]),
+  size:r=>field(r,["Size"]),
+  giftable:r=>field(r,["Giftable","Gift"]),
+  notes:r=>field(r,["Notes","Note"]),
+  type:r=>field(r,["Type","Show Type","Recording Type"]),
+  nft:r=>field(r,["NFT","NFT Status","NFT Date","Status"]),
+  image:r=>field(r,["Image","Images","Screenshot","Screenshots","Thumbnail","Poster","Img","Photo","Picture"]),
+};
+// a recording may list several image URLs separated by commas or new lines
+const imgs = r => get.image(r).split(/[\n,]+/).map(s=>s.trim())
+  .filter(s => /^https?:\/\//i.test(s) || /\.(jpe?g|png|gif|webp|avif|svg)(\?.*)?$/i.test(s));
+const firstImg = r => imgs(r)[0] || "";
+const isGift = r => /^(yes|y|true|1)$/i.test(get.giftable(r));
+const isNFT  = r => { const v=get.nft(r).toLowerCase(); return v && v!=="tradeable" && v!=="no" && v!=="none" && v!=="n"; };
+
+function uid(r){ return [get.title(r),get.location(r),get.date(r),get.master(r),get.link(r)].join(" ¦ "); }
+
+Papa.parse(CSV_URL,{download:true,header:true,skipEmptyLines:true,complete:res=>{
+  rows = res.data.filter(r=>get.title(r));
+  buildFilters();
+  render();
+}});
+
+/* ---- filters ---- */
+function uniq(getter){
+  return [...new Set(rows.map(getter).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+}
+function buildFilters(){
+  const wrap = document.getElementById("filters");
+  wrap.innerHTML = "";
+  const add = (label,key,opts)=>{
+    if(!opts.length) return;
+    const f=document.createElement("label"); f.className="field"; f.textContent=label;
+    const s=document.createElement("select");
+    s.innerHTML = `<option value="">All</option>`+opts.map(o=>`<option>${o}</option>`).join("");
+    s.onchange=()=>{ state[key]=s.value; render(); };
+    f.appendChild(s); wrap.appendChild(f);
+  };
+  add("Type","type",uniq(get.type));
+  add("Format","format",uniq(get.format));
+  add("Location","location",uniq(get.location));
+  add("Master","master",uniq(get.master));
+
+  if (rows.some(isGift)){
+    const f=document.createElement("label"); f.className="field check";
+    const c=document.createElement("input"); c.type="checkbox";
+    c.onchange=()=>{ state.giftable=c.checked; render(); };
+    f.append(c, document.createTextNode("Giftable only")); wrap.appendChild(f);
+  }
+  if (rows.some(r=>get.nft(r))){
+    const f=document.createElement("label"); f.className="field"; f.textContent="NFT status";
+    const s=document.createElement("select");
+    s.innerHTML=`<option value="">All</option><option value="tradeable">Tradeable</option><option value="nft">NFT only</option>`;
+    s.onchange=()=>{ state.nft=s.value; render(); };
+    f.appendChild(s); wrap.appendChild(f);
+  }
+  const clr=document.createElement("button"); clr.className="clear"; clr.textContent="Clear all";
+  clr.onclick=clearFilters; wrap.appendChild(clr);
+}
+function clearFilters(){
+  Object.assign(state,{type:"",format:"",location:"",master:"",giftable:false,nft:""});
+  buildFilters();
+  document.getElementById("search").value=""; state.search="";
+  render();
+}
+
+/* ---- matching ---- */
+function matches(r){
+  const q=state.search;
+  if(q){
+    const hay=[get.title(r),get.cast(r),get.location(r),get.master(r),get.notes(r)].join(" ").toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  if(state.type && get.type(r)!==state.type) return false;
+  if(state.format && get.format(r)!==state.format) return false;
+  if(state.location && get.location(r)!==state.location) return false;
+  if(state.master && get.master(r)!==state.master) return false;
+  if(state.giftable && !isGift(r)) return false;
+  if(state.nft==="tradeable" && isNFT(r)) return false;
+  if(state.nft==="nft" && !isNFT(r)) return false;
+  return true;
+}
+function groupKey(t){
+  const c=(t.trim()[0]||"#").toUpperCase();
+  return c>="A"&&c<="Z" ? c : "#";
+}
+
+/* ---- render ---- */
+function render(){
+  const matched = rows.filter(matches);
+  renderAlpha(matched);
+
+  const visible = matched.filter(r=> state.letter==="ALL" || groupKey(get.title(r))===state.letter);
+  const list=document.getElementById("list"); list.innerHTML="";
+
+  document.getElementById("resultCount").textContent =
+    `${matched.length} recording${matched.length!==1?"s":""}` +
+    (state.letter!=="ALL"?` · showing ${state.letter}`:"") +
+    ` · ${new Set(matched.map(r=>get.title(r))).size} titles`;
+
+  if(!visible.length){
+    list.innerHTML = `<div class="empty">No recordings match your search or filters.<br>Try clearing a filter.</div>`;
+    updateFilterCount(); return;
+  }
+
+  // group: letter -> title -> entries
+  const byLetter={};
+  visible.forEach(r=>{
+    const L=groupKey(get.title(r));
+    (byLetter[L] ??= {});
+    (byLetter[L][get.title(r)] ??= []).push(r);
+  });
+
+  Object.keys(byLetter).sort().forEach(L=>{
+    if(state.letter==="ALL"){
+      const h=document.createElement("div"); h.className="letter-head"; h.textContent=L; h.id="L-"+L;
+      list.appendChild(h);
+    }
+    Object.keys(byLetter[L]).sort((a,b)=>a.localeCompare(b)).forEach(title=>{
+      list.appendChild(renderTitle(title, byLetter[L][title]));
+    });
+  });
+  updateFilterCount();
+}
+
+function renderTitle(title, entries){
+  const frag=document.createDocumentFragment();
+  const btn=document.createElement("button");
+  btn.className="title-btn"; btn.type="button";
+  btn.setAttribute("aria-expanded", openTitles.has(title)?"true":"false");
+  const poster = entries.map(firstImg).find(Boolean) || "";
+  const posterHtml = poster
+    ? `<img class="title-thumb" src="${esc(poster)}" alt="" loading="lazy" onerror="this.remove()">`
+    : "";
+  btn.innerHTML = `${posterHtml}<span class="title-name">${esc(title)}</span><span class="vcount">${entries.length}</span><span class="chev">›</span>`;
+  const box=document.createElement("div");
+  box.className="title-box"+(openTitles.has(title)?" open":"");
+  btn.onclick=()=>{
+    const open=box.classList.toggle("open");
+    btn.setAttribute("aria-expanded", open?"true":"false");
+    open?openTitles.add(title):openTitles.delete(title);
+  };
+  entries.forEach(r=>box.appendChild(renderItem(r)));
+  frag.append(btn, box);
+  return frag;
+}
+
+function renderItem(r){
+  const id=uid(r);
+  const item=document.createElement("div"); item.className="item";
+
+  const top=document.createElement("div"); top.className="item-top";
+  const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=selected.has(id);
+  cb.onchange=()=>{ cb.checked?selected.set(id,{title:get.title(r),location:get.location(r),date:get.date(r),master:get.master(r),link:get.link(r),giftable:isGift(r)}):selected.delete(id); updateTray(); };
+
+  const main=document.createElement("div"); main.className="item-main";
+  const line=document.createElement("div"); line.className="item-line";
+  const loc=document.createElement("span"); loc.className="item-loc";
+  loc.textContent=[get.title(r),get.master(r),get.date(r)].filter(Boolean).join(" · ")||"Recording";
+  line.appendChild(loc);
+
+  const badges=document.createElement("span"); badges.className="badges";
+  const ty=get.type(r);
+  if(ty) badges.innerHTML += `<span class="badge ${/pro/i.test(ty)?"b-proshot":"b-bootleg"}">${esc(ty)}</span>`;
+  if(isGift(r)) badges.innerHTML += `<span class="badge b-gift">Giftable</span>`;
+  if(isNFT(r)) badges.innerHTML += `<span class="badge b-nft">NFT</span>`;
+  if(badges.innerHTML) line.appendChild(badges);
+  main.appendChild(line);
+
+  const sub=document.createElement("div"); sub.className="item-sub";
+  sub.textContent=[get.location(r),get.format(r),get.size(r)].filter(Boolean).join(" · ");
+  if(sub.textContent) main.appendChild(sub);
+
+  const actions=document.createElement("div"); actions.className="item-actions";
+  if(get.link(r)){ const a=document.createElement("a"); a.href=get.link(r); a.target="_blank"; a.rel="noopener"; a.textContent="Open link ↗"; actions.appendChild(a); }
+  const hasDetail=get.cast(r)||get.notes(r);
+  const detail=document.createElement("div"); detail.className="item-detail"+(openItems.has(id)?" open":"");
+  if(hasDetail){
+    const toggle=document.createElement("button"); toggle.textContent= openItems.has(id)?"Hide details":"Cast & notes";
+    toggle.onclick=()=>{ const o=detail.classList.toggle("open"); o?openItems.add(id):openItems.delete(id); toggle.textContent=o?"Hide details":"Cast & notes"; };
+    actions.appendChild(toggle);
+    if(get.cast(r)) detail.innerHTML += `<div class="detail-block"><strong>Cast</strong>${esc(get.cast(r))}</div>`;
+    if(get.notes(r)) detail.innerHTML += `<div class="detail-block"><strong>Notes</strong>${esc(get.notes(r))}</div>`;
+  }
+  if(actions.children.length) main.appendChild(actions);
+  if(hasDetail) main.appendChild(detail);
+
+  top.append(cb, main);
+
+  const pics=imgs(r);
+  if(pics.length){
+    const thumb=document.createElement("img");
+    thumb.className="item-thumb"; thumb.src=pics[0]; thumb.alt=""; thumb.loading="lazy";
+    thumb.onerror=()=>thumb.remove();
+    thumb.onclick=()=>openLightbox(pics, get.title(r), get.location(r));
+    if(pics.length>1){
+      const c=document.createElement("span"); c.className="thumb-count"; c.textContent=pics.length;
+      const wrap=document.createElement("span"); wrap.className="thumb-wrap"; wrap.append(thumb,c);
+      top.appendChild(wrap);
+    } else top.appendChild(thumb);
+  }
+
+  item.appendChild(top);
+  return item;
+}
+
+function renderAlpha(matched){
+  const present=new Set(matched.map(r=>groupKey(get.title(r))));
+  const letters=["ALL","#",..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+  const wrap=document.getElementById("alpha"); wrap.innerHTML="";
+  letters.forEach(L=>{
+    const b=document.createElement("button");
+    b.textContent = L==="ALL"?"All":L;
+    b.className = state.letter===L?"active":"";
+    if(L!=="ALL" && !present.has(L)) b.disabled=true;
+    b.onclick=()=>{ state.letter=L; render(); window.scrollTo({top:0,behavior:"smooth"}); };
+    wrap.appendChild(b);
+  });
+}
+
+function updateFilterCount(){
+  const n=["type","format","location","master","nft"].filter(k=>state[k]).length + (state.giftable?1:0);
+  const c=document.getElementById("filterCount");
+  if(n){ c.textContent=n; c.hidden=false; } else c.hidden=true;
+}
+
+/* ---- request tray + modal ---- */
+function updateTray(){
+  const n=selected.size;
+  document.getElementById("trayCount").textContent=n;
+  document.getElementById("tray").classList.toggle("show", n>0);
+}
+function renderSelList(){
+  const ul=document.getElementById("selList"); ul.innerHTML="";
+  if(!selected.size){ ul.innerHTML=`<li>No recordings selected yet — close this and tick some boxes.</li>`; }
+  selected.forEach((v,id)=>{
+    const li=document.createElement("li");
+    const label=[v.title, v.master, v.date].filter(Boolean).join(" — ");
+    li.innerHTML=`<span>${esc(label)}</span>`;
+    const rm=document.createElement("button"); rm.className="rm"; rm.type="button"; rm.textContent="×";
+    rm.onclick=()=>{ selected.delete(id); renderSelList(); updateTray(); render(); };
+    li.appendChild(rm); ul.appendChild(li);
+  });
+  document.getElementById("sendBtn").disabled = !selected.size;
+}
+function openModal(){ renderSelList(); clearFormError(); document.getElementById("overlay").classList.add("show"); }
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); }
+
+/* ---- image lightbox ---- */
+let lbImages=[], lbIndex=0;
+function openLightbox(images, title, location){
+  lbImages=images; lbIndex=0;
+  document.getElementById("lbCap").textContent=[title,location].filter(Boolean).join(" — ");
+  showLb();
+  const lb=document.getElementById("lightbox"); lb.classList.add("show"); lb.setAttribute("aria-hidden","false");
+  document.getElementById("lbPrev").style.display=images.length>1?"":"none";
+  document.getElementById("lbNext").style.display=images.length>1?"":"none";
+}
+function showLb(){ document.getElementById("lbImg").src=lbImages[lbIndex]; }
+function lbStep(d){ lbIndex=(lbIndex+d+lbImages.length)%lbImages.length; showLb(); }
+function closeLightbox(){ const lb=document.getElementById("lightbox"); lb.classList.remove("show"); lb.setAttribute("aria-hidden","true"); document.getElementById("lbImg").src=""; }
+document.getElementById("lbClose").onclick=closeLightbox;
+document.getElementById("lbPrev").onclick=()=>lbStep(-1);
+document.getElementById("lbNext").onclick=()=>lbStep(1);
+document.getElementById("lightbox").addEventListener("click",e=>{ if(e.target.id==="lightbox") closeLightbox(); });
+function lbOpen(){ return document.getElementById("lightbox").classList.contains("show"); }
+
+document.getElementById("rulesToggle").onclick=function(){
+  const open=document.getElementById("rules").classList.toggle("open");
+  this.textContent="Trading rules "+(open?"▴":"▾");
+};
+document.getElementById("filterToggle").onclick=()=>document.getElementById("filters").classList.toggle("open");
+document.getElementById("search").addEventListener("input",e=>{ state.search=e.target.value.toLowerCase(); render(); });
+document.getElementById("openRequest").onclick=openModal;
+document.getElementById("closeRequest").onclick=closeModal;
+document.getElementById("overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeModal(); });
+document.addEventListener("keydown",e=>{
+  if(lbOpen()){
+    if(e.key==="Escape") closeLightbox();
+    else if(e.key==="ArrowLeft") lbStep(-1);
+    else if(e.key==="ArrowRight") lbStep(1);
+    return;
+  }
+  if(e.key==="Escape") closeModal();
+});
+
+function showFormError(msg){ const el=document.getElementById("formError"); el.textContent=msg; el.hidden=false; }
+function clearFormError(){ const el=document.getElementById("formError"); el.textContent=""; el.hidden=true; }
+
+/* fingerprint a submission so we can spot an identical one sent moments later */
+function submissionFingerprint(gift){
+  const f=document.getElementById("tradeForm");
+  const email=(f.email.value||"").trim().toLowerCase();
+  const comments=(f.comments.value||"").trim();
+  const ids=[...selected.keys()].sort().join("|");
+  return [email, gift?"gift":"trade", ids, comments].join("§");
+}
+const DUP_WINDOW_MS = 5*60*1000; // block an identical resend within 5 minutes
+function isDuplicate(fp){
+  try{ const r=localStorage.getItem("lastTradeSubmit"); if(!r) return false;
+    const last=JSON.parse(r); return last.fp===fp && (Date.now()-last.t) < DUP_WINDOW_MS;
+  }catch(e){ return false; }
+}
+function rememberSubmit(fp){ try{ localStorage.setItem("lastTradeSubmit", JSON.stringify({fp, t:Date.now()})); }catch(e){} }
+
+document.getElementById("tradeForm").addEventListener("submit",e=>{
+  clearFormError();
+  const stop = msg => { e.preventDefault(); showFormError(msg); };
+
+  if(!selected.size) return stop("Please select at least one recording before sending.");
+
+  const gift=document.getElementById("giftCheck").checked;
+
+  // gift box ticked, but some picks aren't giftable
+  if(gift){
+    const notGiftable=[...new Set([...selected.values()].filter(v=>!v.giftable).map(v=>v.title))];
+    if(notGiftable.length)
+      return stop("You've ticked “asking for a gift”, but these aren't marked giftable: "
+        + notGiftable.join(", ")
+        + ". Please remove them from your selection, or untick the gift box if you're trading for them.");
+  }
+
+  // identical request sent moments ago
+  const fp=submissionFingerprint(gift);
+  if(isDuplicate(fp))
+    return stop("It looks like you just sent this exact request a moment ago. If you didn't get a confirmation, please wait a few minutes before trying again so it isn't sent twice.");
+
+  // all good — build the email fields and let it submit
+  const lines=[...selected.values()].map(v=>[v.title,v.master,v.date,v.location,v.link].filter(Boolean).join(" — "));
+  document.getElementById("formTitles").value=lines.join("\n");
+  const email=(document.getElementById("tradeForm").email.value||"").trim();
+  const n=selected.size;
+  const vids=n+" video"+(n===1?"":"s");
+  // subject stays the same for a given person so their requests thread together
+  document.getElementById("formSubject").value="Trade request — "+email;
+  // sender name carries the at-a-glance detail without breaking threading
+  document.getElementById("formFromName").value=(gift?"GIFT · ":"Trade · ")+vids;
+  rememberSubmit(fp);
+
+  // guard against double-clicks while the page navigates to the confirmation
+  const b=document.getElementById("sendBtn");
+  setTimeout(()=>{ b.disabled=true; b.textContent="Sending…"; },0);
+});
+
+// re-enable the button if the user returns via the back button (cached page)
+window.addEventListener("pageshow",e=>{
+  if(e.persisted){ const b=document.getElementById("sendBtn"); b.disabled=false; b.textContent="Send request"; }
+});
+
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+</script>
+</body>
+</html>
